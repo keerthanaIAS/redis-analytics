@@ -5,15 +5,23 @@ const redis = new Redis({
     // host: "10.55.66.132",
     // port: 6379,
     // password: "app-pass"
-    // config wise setup and for docker wise too
+    // config wise setup
     // sentinels: [
     //     { host: "127.0.0.1", port: 26379 }
     // ],
     // name: "mymaster",
     // password: "app-pass",
-    host: "127.0.0.1",
-    port: 6379,
-    password: "app-pass"
+    // docker setup
+    // host: "127.0.0.1",
+    // port: 6379,
+    // password: "app-pass"
+    // S3 setup
+    sentinels: [
+        { host: "sentinel1", port: 26379 },
+        { host: "sentinel2", port: 26379 },
+        { host: "sentinel3", port: 26379 }
+    ],
+    name: "mymaster"
 });
 
 redis.on("connect", () => {
