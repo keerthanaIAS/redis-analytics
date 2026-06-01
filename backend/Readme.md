@@ -1646,3 +1646,224 @@ keerthana@Keerthanas-MacBook-Air redis-docker % docker exec -it redis-sentinel s
 # 
 
 --------------
+
+The key error is:-
+-----------------
+error while creating mount source path
+'/host_mnt/Users/keerthana/.Trash/redis-docker/master/redis.conf'
+
+operation not permitted
+
+Fix
+Move the project out of .Trash.
+
+For example:
+mkdir -p ~/Desktop/redis-docker
+cp -R ~/.Trash/redis-docker/* ~/Desktop/redis-docker/
+cd ~/Desktop/redis-docker
+
+Then start again:-
+docker compose down -v
+docker compose up -d
+
+why sentinel monitor mymaster redis-master 6379 1 this not worked in redis docker? : -
+------------------------------------------------------------------------------------
+Because there were actually **two different problems** mixed together.
+
+### What should normally happen
+
+Inside a Docker Compose network, this is valid:
+
+```conf
+sentinel monitor mymaster redis-master 6379 1
+```
+because Docker DNS automatically resolves:
+
+```text
+redis-master  --> container IP
+```
+So Sentinel should be able to find `redis-master`.
+
+---
+
+### What happened in your case
+
+Your Sentinel started with:
+
+```text
+Failed to resolve hostname 'redis-master'
+Can't resolve instance hostname
+```
+
+This means when Sentinel started, Docker DNS lookup for `redis-master` failed.
+
+The evidence is here:
+
+```bash
+docker network inspect redis-docker_redis-net
+```
+
+showed only:
+
+```text
+redis-master
+redis-replica
+```
+
+but **no sentinel container attached**.
+
+Since Sentinel was crashing during startup, it never successfully joined the network.
+
+So Sentinel tried:
+
+```text
+resolve(redis-master)
+```
+before it was properly attached / before Docker DNS was available to it.
+
+Result:
+```text
+Can't resolve instance hostname
+```
+
+---
+
+### Why IP worked
+When you changed:
+```conf
+sentinel monitor mymaster redis-master 6379 1
+```
+to
+```conf
+sentinel monitor mymaster 172.21.0.2 6379 1
+```
+no DNS lookup was needed.
+
+Sentinel directly connected to:
+```text
+172.21.0.2:6379
+```
+and started successfully.
+
+That's why logs changed to:
+```text
++monitor master mymaster 172.21.0.2 6379
++slave slave 172.21.0.3:6380
+```
+
+---
+### Another thing I noticed
+You added:
+```yaml
+container_name: redis-master
+hostname: redis-master
+```
+later.
+
+Without `container_name`, Compose creates:
+```text
+redis-docker-redis-master-1
+```
+and normally provides `redis-master` as a network alias.
+That usually works.
+But Docker DNS can be flaky when containers are repeatedly recreated while one service keeps crashing during startup.
+
+---
+### How I would verify the real cause
+Run:
+```bash
+docker compose up -d
+docker exec -it redis-master sh
+```
+Then from inside the master container:
+```bash
+getent hosts redis-master
+```
+If you get:
+```text
+172.21.0.x redis-master
+```
+Docker DNS is working.
+If not:
+```text
+not found
+```
+then the network alias isn't being created correctly.
+---
+
+### For learning Redis Sentinel
+Use hostname:
+```conf
+sentinel monitor mymaster redis-master 6379 1
+```
+That's the correct Docker Compose approach.
+
+Using:
+```conf
+sentinel monitor mymaster 172.21.0.2 6379 1
+```
+*works for a demo*, but the IP changes whenever the containers are recreated, so it's not how Sentinel is normally deployed.
+
+*So need to change ip to actual redis-master in sentinel:*
+Correct. Using the IP is only a workaround. In a real Docker deployment, you should use:
+```conf
+sentinel monitor mymaster redis-master 6379 1
+```
+The fact that it failed means there is still a Docker networking/DNS issue in your setup.
+
+For this to work, all three containers must be on the same Docker network:
+```bash
+docker network inspect redis-docker_redis-net
+```
+
+You should see:
+```text
+redis-master
+redis-replica
+redis-sentinel
+```
+inside the `Containers` section.
+
+Earlier, your inspect output showed only:
+```text
+redis-master
+redis-replica
+```
+and Sentinel was crashing immediately. Since it crashed during startup, it never fully joined the network, so DNS lookup for `redis-master` failed.
+---------start here----------
+To test Docker DNS directly, start a temporary container on the same network:
+```bash
+docker run --rm -it \
+  --network redis-docker_redis-net \
+  redis:7 sh
+```
+
+Inside it run:
+```bash
+getent hosts redis-master
+```
+
+Expected:
+```text
+172.21.0.x redis-master
+```
+If that works, Docker DNS is fine.
+
+Then change Sentinel back to:
+```conf
+port 26379
+
+sentinel resolve-hostnames yes
+sentinel monitor mymaster redis-master 6379 1
+sentinel auth-pass mymaster app-pass
+sentinel down-after-milliseconds mymaster 5000
+sentinel failover-timeout mymaster 10000
+```
+
+and recreate:
+```bash
+docker compose down -v
+docker compose up -d --force-recreate
+```
+----------end here------------------
+

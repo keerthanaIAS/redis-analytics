@@ -1,0 +1,281 @@
+Redis server startup does NOT require AUTH : -
+------------------------------------------
+When you start Redis:
+redis-server redis.conf
+
+Redis reads the config file locally from disk.
+It does not connect over TCP to itself.
+
+So:
+Redis startup → no AUTH needed
+
+Clients DO require AUTH : -
+------------------------
+For example:
+redis-cli
+
+Then:
+127.0.0.1:6379> GET name
+
+You'll get:
+NOAUTH Authentication required.
+
+Then:
+AUTH app-pass
+GET name
+
+works.
+
+Replica requires separate authentication settings : -
+-------------------------------------------------
+If a replica connects to a master protected by:
+requirepass app-pass
+
+the replica must know that password:
+masterauth app-pass
+
+Otherwise you'll see errors like:
+NOAUTH Authentication required.
+MASTER aborted replication
+which you actually saw earlier.
+
+Sentinel requires separate authentication too : -
+---------------------------------------------
+If master has:
+requirepass app-pass
+
+Sentinel needs:
+sentinel auth-pass mymaster app-pass
+
+Otherwise Sentinel cannot monitor the master.
+
+
+
+Command	                   One-line Explanation
+--------                   ---------------------
+SET key value	           Stores a single string value in Redis.
+GET key	                   Retrieves the string value stored at a key.
+INCR key	               Increases a numeric value by 1 atomically.
+EXPIRE key seconds	       Automatically deletes a key after the specified time.
+HSET key field value	   Stores one or more fields inside a hash (object-like structure).
+HGETALL key	               Retrieves all fields and values from a hash.
+SADD key value	           Adds one or more unique members to a set.
+SMEMBERS key	           Returns all members of a set.
+ZADD key score member	   Adds a member with a score to a sorted set.
+ZREVRANGE key start stop   Returns sorted-set members from highest score to lowest.
+PUBLISH channel message	   Sends a message to all subscribers of a channel.
+SUBSCRIBE channel	       Listens for messages published to a channel.
+
+Quick Real-World Mapping : -
+-------------------------
+SET/GET          → Cache data
+INCR             → API hit counter
+EXPIRE           → Session timeout / OTP expiry
+HSET/HGETALL     → User profile object
+SADD/SMEMBERS    → Online users, tags
+ZADD/ZREVRANGE   → Leaderboards, rankings
+PUBLISH          → Send event/message
+SUBSCRIBE        → Receive event/message
+
+remember : -
+--------
+String      → SET, GET
+Counter     → INCR
+TTL         → EXPIRE
+Hash        → HSET, HGETALL
+Set         → SADD, SMEMBERS
+Sorted Set  → ZADD, ZREVRANGE
+Pub/Sub     → PUBLISH, SUBSCRIBE
+
+
+The real purpose in one line : -
+------------------------------
+Replica provides a backup copy of data; Sentinel provides automatic failover to that backup when the master dies.
+
+
+the rule is:
+------------
+Master only            → Sentinel optional
+Master + Replica       → Sentinel useful
+Master + Replicas      → Sentinel recommended
+Production HA setup    → Sentinel (or Redis Cluster) expected
+
+Setup for the above rule: -
+--------------------------
+
+Here are practical Redis setups from simplest to production-grade:
+
+### 1. Master Only (Development)
+```text
+App
+ |
+ v
+Redis Master
+```
+
+**docker-compose**
+```yaml
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+```
+If Redis dies → app cannot read/write until Redis comes back.
+
+
+### 2. Master + Replica
+```text
+          Replica
+             ^
+             |
+             |
+App ----> Master
+```
+
+**docker-compose**
+```yaml
+services:
+  redis-master:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  redis-replica:
+    image: redis:7
+    command: redis-server --replicaof redis-master 6379
+    ports:
+      - "6380:6379"
+```
+
+If master dies:
+* Replica still has data
+* But app still points to master
+* Manual promotion required
+
+```bash
+redis-cli -p 6380 REPLICAOF NO ONE
+```
+Now replica becomes master.
+
+
+### 3. Master + Replica + Sentinel
+
+```text
+              Sentinel
+                  |
+                  |
+App ---> Sentinel ---> Current Master
+                  |
+                  +--> Replica
+```
+
+**docker-compose**
+```yaml
+services:
+
+  redis-master:
+    image: redis:7
+
+  redis-replica:
+    image: redis:7
+    command: redis-server --replicaof redis-master 6379
+
+  redis-sentinel:
+    image: redis:7
+    command: redis-server /sentinel.conf --sentinel
+```
+
+Sentinel:
+```conf
+port 26379
+
+sentinel monitor mymaster 172.21.0.2 6379 1
+sentinel auth-pass mymaster app-pass
+```
+
+Flow:
+1. App asks Sentinel:
+   ```
+   Who is mymaster?
+   ```
+2. Sentinel replies:
+   ```
+   172.21.0.2:6379
+   ```
+3. App connects there.
+4. Master crashes.
+5. Sentinel promotes replica.
+6. App reconnects automatically.
+No manual work.
+
+
+### 4. Production HA Setup
+
+```text
+           Sentinel1
+               |
+               |
+Sentinel2 ---- Master ---- Replica1
+               |
+               |
+           Replica2
+               |
+           Sentinel3
+```
+Usually:
+```text
+3 Sentinels
+1 Master
+2 Replicas
+```
+
+Why 3 Sentinels?
+Because Sentinel voting is required.
+
+Example:
+```text
+Sentinel1 sees master down
+Sentinel2 sees master down
+Sentinel3 sees master alive
+```
+2/3 majority wins → failover starts.
+
+
+### 5. Redis Cluster (Large Scale)
+
+```text
+Master1 ---> Replica1
+Master2 ---> Replica2
+Master3 ---> Replica3
+```
+```text
+Slot 0-5460      -> Master1
+Slot 5461-10922  -> Master2
+Slot 10923-16383 -> Master3
+```
+Used when:
+* Data too large for one node
+* Need sharding
+* Hundreds of GB/TB data
+
+Cluster handles:
+* Replication
+* Failover
+* Sharding
+automatically.
+
+
+```text
+Master
+  ↓ replication
+Replica
+
+Sentinel monitors both.
+
+If master dies:
+Replica promoted to Master.
+
+Application asks Sentinel for current master.
+```
+That's the core Sentinel architecture.

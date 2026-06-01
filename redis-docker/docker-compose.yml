@@ -4,6 +4,8 @@ services:
 
   redis-master:
     image: redis:7
+    container_name: redis-master
+    hostname: redis-master
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - ./master/redis.conf:/usr/local/etc/redis/redis.conf
@@ -14,6 +16,8 @@ services:
 
   redis-replica:
     image: redis:7
+    container_name: redis-replica
+    hostname: redis-replica
     command: redis-server /usr/local/etc/redis/redis.conf --replicaof redis-master 6379
     volumes:
       - ./replica/redis.conf:/usr/local/etc/redis/redis.conf
@@ -33,6 +37,14 @@ services:
       - "26379:26379"
     depends_on:
       - redis-master
+    networks:
+      - redis-net
+  
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: redis-insight
+    ports:
+      - "5540:5540"
     networks:
       - redis-net
 
