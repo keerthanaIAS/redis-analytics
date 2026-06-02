@@ -23,12 +23,12 @@ const redis = new Redis({
     ],
     name: "mymaster",
     // if the config sentinal file have redis-master uncommand this for local redis connectivity / in config sentinel file use 127.0.0.1 instead redis-master
-    // natMap: {
-    //     "172.18.0.3:6379": {
-    //         host: "127.0.0.1",
-    //         port: 6379
-    //     }
-    // }
+    natMap: {
+        "172.18.0.3:6379": {
+            host: "127.0.0.1",
+            port: 6379
+        }
+    }
 });
 
 redis.on("connect", () => {

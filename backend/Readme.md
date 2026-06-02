@@ -1873,3 +1873,38 @@ docker compose down -v
 docker rm -f redis-replica1 redis-replica2 2>/dev/null
 docker network prune -f
 docker compose up -d
+
+
+## negative senario commands:
+
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % docker ps
+CONTAINER ID   IMAGE                                   COMMAND                  CREATED          STATUS                             PORTS                                             NAMES
+71b8d52ed128   redis:7                                 "docker-entrypoint.s…"   39 seconds ago   Up 37 seconds                      0.0.0.0:26380->26379/tcp, [::]:26380->26379/tcp   sentinel-2
+5c9e74584d57   redis:7                                 "docker-entrypoint.s…"   39 seconds ago   Up 37 seconds                      0.0.0.0:6381->6379/tcp, [::]:6381->6379/tcp       redis-replica-2
+355d313013aa   redis:7                                 "docker-entrypoint.s…"   39 seconds ago   Up 37 seconds                      0.0.0.0:26381->26379/tcp, [::]:26381->26379/tcp   sentinel-3
+f05da65eec5e   redis:7                                 "docker-entrypoint.s…"   39 seconds ago   Up 37 seconds                      0.0.0.0:6380->6379/tcp, [::]:6380->6379/tcp       redis-replica-1
+a20cbacfe919   redis:7                                 "docker-entrypoint.s…"   39 seconds ago   Up 37 seconds                      0.0.0.0:26379->26379/tcp, [::]:26379->26379/tcp   sentinel-1
+60f0ddf03d04   redis:7                                 "docker-entrypoint.s…"   39 seconds ago   Up 37 seconds                      0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp       redis-master
+b26222089adf   rediscommander/redis-commander:latest   "/usr/bin/dumb-init …"   39 seconds ago   Up 37 seconds (health: starting)   0.0.0.0:8081->8081/tcp, [::]:8081->8081/tcp       redis-ui
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % docker exec sentinel-1 redis-cli -p 26379 ping
+PONG
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % docker exec sentinel-1 redis-cli -p 26379 -c
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % docker stop redis-master
+redis-master
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % sleep 15
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % docker exec redis-replica-1 redis-cli INFO replication | grep role
+docker exec redis-replica-2 redis-cli INFO replication | grep role
+role:slave
+role:master
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % docker exec sentinel-1 redis-cli -p 26379 SENTINEL get-master-addr-by-name mymaster 
+172.18.0.5
+6379
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % docker exec redis-replica-1 redis-cli SET after_failover "Working on new master" 2>/dev/null || docker exec redis-replica-2 redis-cli SET after_failover "Working on new master"
+READONLY You can't write against a read only replica.
+
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % docker start redis-master
+redis-master
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % sleep 5
+docker exec redis-master redis-cli INFO replication | grep role
+role:slave
+keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % 
