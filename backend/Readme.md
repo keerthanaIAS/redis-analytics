@@ -1958,3 +1958,66 @@ text
 redis-replica-2 (6381) - MASTER  ← New master!
     ├── redis-master (6379) - SLAVE  ← Old master is now slave
     └── redis-replica-1 (6380) - SLAVE
+
+*test case*
+1. Test Master Failure (Already Did - Works!)
+bash
+# Check current master
+docker exec sentinel-1 redis-cli -p 26379 SENTINEL get-master-addr-by-name mymaster
+
+# Stop current master (replica-2)
+docker stop redis-replica-2
+
+# Monitor failover in real-time (run in another terminal)
+docker logs -f sentinel-1
+
+# Wait 10-15 seconds
+sleep 15
+
+# Check new master (should be replica-1 or redis-master)
+docker exec sentinel-1 redis-cli -p 26379 SENTINEL get-master-addr-by-name mymaster
+
+# Check roles
+docker exec redis-replica-1 redis-cli INFO replication | grep role
+docker exec redis-master redis-cli INFO replication | grep role
+
+# Bring back old master
+docker start redis-replica-2
+
+# Check it rejoins as replica
+sleep 5
+docker exec redis-replica-2 redis-cli INFO replication | grep role
+2. Test Sentinel Failure
+bash
+# Check all sentinels are running
+docker ps | grep sentinel
+
+# Stop one sentinel
+docker stop sentinel-1
+
+# Check remaining sentinels still work
+docker exec sentinel-2 redis-cli -p 26379 SENTINEL masters
+docker exec sentinel-3 redis-cli -p 26379 SENTINEL masters
+
+# Try failover with only 2 sentinels (still works because quorum=2)
+docker stop redis-replica-1  # Stop a replica
+
+# Check if failover works with 2 sentinels
+sleep 10
+docker exec sentinel-2 redis-cli -p 26379 SENTINEL get-master-addr-by-name mymaster
+
+# Restart sentinel-1
+docker start sentinel-1
+
+# Verify it rejoins
+docker exec sentinel-1 redis-cli -p 26379 SENTINEL masters
+3. Test Network Partition (Simulate)
+bash
+# Create network isolation by disconnecting container
+docker network disconnect redis-docker-2r-3s_redis-net redis-replica-1
+
+# Check sentinel's reaction (monitor logs)
+docker logs -f sentinel-2
+
+# Reconnect after test
+docker network connect redis-docker-2r-3s_redis-net redis-replica-1
