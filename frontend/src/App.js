@@ -43,6 +43,32 @@ function App() {
   // Rate limiter
   const [rateResult, setRateResult] = useState("");
 
+  const [health, setHealth] = useState(null);
+  const [info, setInfo] = useState("");
+  const [sentinel, setSentinel] = useState(null);
+  const API = "http://localhost:4000"
+
+  // Health
+  async function getHealth() {
+    const res = await fetch(`${API}/health`);
+    const data = await res.json();
+    setHealth(data);
+  }
+
+  // Info
+  async function getInfo() {
+    const res = await fetch(`${API}/info`);
+    const data = await res.json();
+    setInfo(data.info);
+  }
+
+  // Sentinel
+  async function getSentinel() {
+    const res = await fetch(`${API}/sentinel`);
+    const data = await res.json();
+    setSentinel(data);
+  }
+
   // =========================
   // STRING
   // =========================
@@ -572,6 +598,20 @@ function App() {
       </button>
 
       <pre>{rateResult}</pre>
+
+      <hr />
+
+      <h3>System Health</h3>
+      <button onClick={getHealth}>Check Health</button>
+      <pre>{JSON.stringify(health, null, 2)}</pre>
+
+      <h3>Redis Info</h3>
+      <button onClick={getInfo}>Get Info</button>
+      <pre>{info}</pre>
+
+      <h3>Sentinel Status</h3>
+      <button onClick={getSentinel}>Get Sentinel Data</button>
+      <pre>{JSON.stringify(sentinel, null, 2)}</pre>
 
     </div>
   );

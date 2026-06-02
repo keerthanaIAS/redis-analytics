@@ -230,7 +230,7 @@ app.post("/leaderboard", async (req, res) => {
     );
 
     res.json({
-        success: true 
+        success: true
     });
 });
 app.get("/leaderboard", async (req, res) => {
@@ -347,6 +347,25 @@ app.get("/info", async (req, res) => {
     const info = await redis.info();
 
     res.send(info);
+});
+
+// const master = await redis.sentinel("master", "mymaster");
+// const replicas = await redis.sentinel("replicas", "mymaster");
+
+// app.get("/sentinel", async (req, res) => {
+//     try {
+//         const master = await redis.sentinel("master", "mymaster");
+//         const replicas = await redis.sentinel("replicas", "mymaster");
+
+//         res.json({ master, replicas });
+//     } catch (err) {
+//         res.status(500).json({ error: err.message });
+//     }
+// });
+
+app.get("/health", async (req, res) => {
+    const pong = await redis.ping();
+    res.json({ pong });
 });
 
 
