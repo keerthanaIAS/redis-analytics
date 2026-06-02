@@ -1908,3 +1908,53 @@ keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % sleep 5
 docker exec redis-master redis-cli INFO replication | grep role
 role:slave
 keerthana@Keerthanas-MacBook-Air redis-docker-2R-3S % 
+keerthana@Keerthanas-MacBook-Air redis-analytics % docker exec sentinel-1 redis-cli -p 26379 SENTINEL get-master-addr-by-name mymaster
+
+172.18.0.5
+6379
+keerthana@Keerthanas-MacBook-Air redis-analytics % docker exec redis-replica-1 redis-cli INFO replication | grep role
+docker exec redis-replica-2 redis-cli INFO replication | grep role
+docker exec redis-master redis-cli INFO replication | grep role
+role:slave
+role:master
+role:slave
+keerthana@Keerthanas-MacBook-Air redis-analytics % docker exec redis-replica-2 redis-cli INFO replication
+# Replication
+role:master
+connected_slaves:2
+slave0:ip=172.18.0.8,port=6379,state=online,offset=82734,lag=0
+slave1:ip=172.18.0.3,port=6379,state=online,offset=82869,lag=0
+master_failover_state:no-failover
+master_replid:3d5e79480ef3857cd69efe92d376279c8cb68cce
+master_replid2:d39b0517af86af86117fce30474f98c7ffb411ec
+master_repl_offset:83004
+second_repl_offset:37561
+repl_backlog_active:1
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:834
+repl_backlog_histlen:82171
+keerthana@Keerthanas-MacBook-Air redis-analytics % docker exec redis-replica-2 redis-cli SET after_failover "Working on new master"
+
+OK
+keerthana@Keerthanas-MacBook-Air redis-analytics % docker exec redis-replica-2 redis-cli GET after_failover
+Working on new master
+keerthana@Keerthanas-MacBook-Air redis-analytics % docker exec redis-replica-1 redis-cli GET after_failover
+Working on new master
+keerthana@Keerthanas-MacBook-Air redis-analytics % docker exec redis-master redis-cli GET after_failover
+Working on new master
+keerthana@Keerthanas-MacBook-Air redis-analytics % 
+
+## Understanding the Failover
+Here's what happened in your cluster:
+
+Before failover:
+text
+redis-master (6379) - MASTER
+    ├── redis-replica-1 (6380) - SLAVE
+    └── redis-replica-2 (6381) - SLAVE
+After failover (current):
+
+text
+redis-replica-2 (6381) - MASTER  ← New master!
+    ├── redis-master (6379) - SLAVE  ← Old master is now slave
+    └── redis-replica-1 (6380) - SLAVE
