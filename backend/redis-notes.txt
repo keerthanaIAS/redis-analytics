@@ -64,7 +64,57 @@ SMEMBERS key	           Returns all members of a set.
 ZADD key score member	   Adds a member with a score to a sorted set.
 ZREVRANGE key start stop   Returns sorted-set members from highest score to lowest.
 PUBLISH channel message	   Sends a message to all subscribers of a channel.
-SUBSCRIBE channel	       Listens for messages published to a channel.
+SUBSCRIBE channel	       Listens for messages published to a channel.\
+DEL                       key	Deletes key immediately
+UNLINK key	              Async delete (better for production)
+EXISTS key	              Check if key exists
+TYPE key	                Tells what data type it is
+RENAME                     key newkey	Rename key
+SCAN                       cursor	Safe way to iterate keys (DON’T use KEYS in prod)
+SETEX                       key seconds value	SET + expiry in one shot
+MSET k1 v1 k2 v2	          Set multiple keys
+MGET k1 k2	                Get multiple keys
+GETSET key value	          Set new value, return old value
+DECR key	                  decrement
+INCRBY key n	              increase by n
+DECRBY key n	             decrease by n
+INCRBYFLOAT key n	         decimal counters
+HGET key field	             single field
+HEXISTS key field	           check field
+HDEL key field	             delete field
+HINCRBY key field n	          counter inside object
+HMSET (deprecated but seen)	   multiple fields
+LPUSH	                         push left
+RPUSH	                         push right
+LPOP	                         remove left
+RPOP	                         remove right
+LRANGE key 0 -1	                view list
+BLPOP key timeout	              blocking pop (VERY important)
+BRPOP key timeout	              blocking pop
+SISMEMBER	                    check membership
+SREM	                        remove member
+SUNION	                      union
+SINTER	                      intersection
+SDIFF	                        difference
+ZRANGE	                      ascending
+ZINCRBY	                      increase score
+ZRANK	                      position
+ZREVRANK	                 reverse position
+ZREM	                      remove member
+ZCOUNT	                    range count
+UNSUBSCRIBE	                stop listening
+PUBLISH	                    send message
+PSUBSCRIBE	                pattern subscribe
+XADD	                      add event
+XREAD	                      read stream
+XGROUP	                    consumer groups
+XACK	                      acknowledge
+INFO	                      full system state
+INFO replication	            master/slave info
+SLOWLOG GET	                   slow queries
+CLIENT LIST	                  connected clients
+MONITOR	live                  commands stream (dangerous)
+
 
 Quick Real-World Mapping : -
 -------------------------

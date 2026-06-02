@@ -1867,3 +1867,9 @@ docker compose up -d --force-recreate
 ```
 ----------end here------------------
 
+## clean docker down:
+
+docker compose down -v                     
+docker rm -f redis-replica1 redis-replica2 2>/dev/null
+docker network prune -f
+docker compose up -d
