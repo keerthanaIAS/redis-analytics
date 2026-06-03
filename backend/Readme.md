@@ -2126,3 +2126,75 @@ redis-cli -p 6381 INFO replication
 5.If all Sentinels are down, Redis can still serve traffic, but automatic failover is impossible.
 6.If the master and Sentinels are both down, no replica can become master automatically.
 
+## get docker IP command:
+docker inspect redis-master | grep IPAddress                
+docker inspect redis-replica-1 | grep IPAddress
+docker inspect redis-replica-2 | grep IPAddress
+
+## which one is the current master
+redis-cli -p 26379 SENTINEL get-master-addr-by-name mymaster
+
+--------------------------------------------------------------
+*main learning of default and different port*: -
+
+*default port*
+• If Redis runs on the default port (6379), only the Sentinel containers need different exposed host ports (26379, 26380, 26381) for local access.
+• and docker port 79:79,80:79,81:79
+* in default port why we need to give 127.0.0.1 , 79,80,81 and also in docker 79:79,80:79,81:79 we can give deafult port in all why not?
+Because your Mac can only have one service listening on one host port.
+
+But on your Mac you cannot do:
+6379:6379   # master
+6379:6379   # replica1 ❌
+6379:6379   # replica2 ❌
+because host port 6379 is already occupied.
+
+So Docker requires unique host ports:
+6379:6379   # master
+6380:6379   # replica1
+6381:6379   # replica2
+
+Same for Sentinels:
+26379:26379
+26380:26379
+26381:26379
+
+In Docker:
+HOST_PORT:CONTAINER_PORT
+
+So:
+6380:6379
+
+means:
+Mac (localhost:6380)
+        ↓
+Redis container (6379)
+
+And:
+26380:26379
+
+means:
+Mac (localhost:26380)
+        ↓
+Sentinel container (26379)
+
+A simple memory trick:
+LEFT  = Your machine (localhost)
+RIGHT = Inside the container
+
+*custom port*:-
+• If Redis runs on custom ports (e.g., 6379, 6380, 6381 or 79, 80, 81), those ports must be updated consistently everywhere:
+  - Redis configuration
+  - Sentinel configuration
+  - Docker port mappings
+  - natMap (ioredis)
+• All components must agree on the same ports, otherwise failover may occur but clients won't be able to connect to the new master.
+
+Then natMap MUST contain:
+"172.18.0.6:6380": {
+  host: "127.0.0.1",
+  port: 6380
+}
+
+and Docker must expose:
+6380:6380

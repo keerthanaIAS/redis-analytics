@@ -24,7 +24,7 @@ services:
     volumes:
       - ./replica1/redis.conf:/usr/local/etc/redis/redis.conf
     ports:
-      - "6380:6379"
+      - "6380:6380"
     depends_on:
       - redis-master
     networks:
@@ -37,7 +37,7 @@ services:
     volumes:
       - ./replica2/redis.conf:/usr/local/etc/redis/redis.conf
     ports:
-      - "6381:6379"
+      - "6381:6381"
     depends_on:
       - redis-master
     networks:
@@ -65,7 +65,7 @@ services:
     depends_on:
       - redis-master
     ports:
-      - "26380:26379"
+      - "26380:26380"
     networks:
       - redis-net
 
@@ -78,7 +78,7 @@ services:
     depends_on:
       - redis-master
     ports:
-      - "26381:26379"
+      - "26381:26381"
     networks:
       - redis-net
 
