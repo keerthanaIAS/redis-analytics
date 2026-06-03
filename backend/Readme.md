@@ -2021,3 +2021,108 @@ docker logs -f sentinel-2
 
 # Reconnect after test
 docker network connect redis-docker-2r-3s_redis-net redis-replica-1
+
+
+## Important Redis Sentinel Concepts You Just Learned
+Scenario 1:-
+Master dies.
+
+Master ❌
+Replica1 ✅
+Replica2 ✅
+Sentinel1 ✅
+Sentinel2 ✅
+Sentinel3 ✅
+
+Result:
+Failover occurs
+Replica promoted
+
+because quorum is available.
+
+Scenario 2:-
+Master dies.
+Only one Sentinel alive.
+
+Master ❌
+Replica1 ✅
+Replica2 ✅
+Sentinel1 ✅
+Sentinel2 ❌
+Sentinel3 ❌
+
+Result:
+No failover
+
+because:
+quorum = 2
+alive sentinels = 1
+
+Scenario 3:-
+
+All Sentinels die.
+
+Master ✅
+Replica1 ✅
+Replica2 ✅
+Sentinels ❌
+
+Result:
+Redis still works
+No monitoring
+No failover
+
+Scenario 4:-
+
+Master + all Sentinels die.
+
+Master ❌
+Replica1 ✅
+Replica2 ✅
+Sentinels ❌
+
+Result:
+No master available
+No failover
+Application cannot write
+
+Exactly what you observed.
+
+## Commands You Should Memorize
+
+Check master:
+
+redis-cli -p 26379 SENTINEL master mymaster
+
+Get current master:
+
+redis-cli -p 26379 SENTINEL get-master-addr-by-name mymaster
+
+List replicas:
+
+redis-cli -p 26379 SENTINEL replicas mymaster
+
+List sentinels:
+
+redis-cli -p 26379 SENTINEL sentinels mymaster
+
+Check master role:
+
+redis-cli -p 6379 INFO replication
+
+Check replica role:
+
+redis-cli -p 6380 INFO replication
+
+Check another replica:
+
+redis-cli -p 6381 INFO replication
+
+## Most Important Explanation
+1.Replication provides copies of data.
+2.Sentinel provides monitoring and automatic failover.
+3.A replica never promotes itself.
+4.Sentinels must reach quorum before electing a new master.
+5.If all Sentinels are down, Redis can still serve traffic, but automatic failover is impossible.
+6.If the master and Sentinels are both down, no replica can become master automatically.
+
