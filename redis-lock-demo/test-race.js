@@ -94,7 +94,7 @@ async function testAtomic() {
 }
 
 async function run() {
-    console.log('\n🎯 RACE CONDITION DEMO - See the difference!\n');
+    console.log('\n RACE CONDITION DEMO - See the difference!\n');
     
     await testRaceCondition();
     await sleep(2000);
